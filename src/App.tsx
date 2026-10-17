@@ -1,13 +1,17 @@
 import { ConnectKitButton } from 'connectkit'
-import { useAccount } from 'wagmi'
+import { useAccount, useSwitchChain } from 'wagmi'
 import { TokenInfo } from './components/TokenInfo'
 import { MintForm } from './components/MintForm'
 import { BurnForm } from './components/BurnForm'
 import { PauseControls } from './components/PauseControls'
 import { RoleManager } from './components/RoleManager'
 
+const ARC_TESTNET_ID = 5042002
+
 export default function App() {
-  const { isConnected } = useAccount()
+  const { isConnected, chainId } = useAccount()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
+  const isWrongChain = isConnected && chainId !== ARC_TESTNET_ID
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg-gradient)', padding: '0 0 80px' }}>
@@ -56,6 +60,50 @@ export default function App() {
       <main style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 24px 0' }}>
         {/* Token info hero */}
         <TokenInfo />
+
+        {/* Wrong-chain banner */}
+        {isWrongChain && (
+          <div style={{
+            marginTop: '20px',
+            background: 'rgba(186,43,76,0.07)',
+            border: '1px solid rgba(186,43,76,0.25)',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}>
+            <div>
+              <p className="display" style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#ba2b4c' }}>
+                Wrong network
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--muted)' }}>
+                Switch to Arc Testnet to use this app.
+              </p>
+            </div>
+            <button
+              onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
+              disabled={isSwitching}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '10px',
+                border: 'none',
+                background: '#ba2b4c',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: isSwitching ? 'wait' : 'pointer',
+                opacity: isSwitching ? 0.7 : 1,
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {isSwitching ? 'Switching…' : 'Switch to Arc Testnet'}
+            </button>
+          </div>
+        )}
 
         {/* Action panels */}
         {!isConnected ? (
