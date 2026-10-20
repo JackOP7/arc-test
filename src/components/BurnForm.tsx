@@ -2,14 +2,10 @@ import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import { toast } from 'sonner'
-import { Flame, ExternalLink } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { ARC_TOKEN_ABI, ARC_TOKEN_ADDRESS } from '@/abi/ArcToken'
 import { buildTxExplorerUrl } from '@/onchain-facts'
-import {
-  cardStyle, cardTitle, cardSubtitle, labelStyle, inputStyle,
-  inputSuffix, hintText, successBanner, errorBanner, explorerLink,
-  primaryBtn, iconBadge,
-} from './MintForm'
+import { labelStyle, inputStyle, suffixStyle, hint, successBanner, errorBanner, explorerLink, Cta } from './MintForm'
 
 const CHAIN_ID = 5042002
 const TOKEN_DECIMALS = 18
@@ -29,110 +25,81 @@ export function BurnForm() {
   const [amount, setAmount] = useState('')
 
   const { data: balance } = useReadContract({
-    address: ARC_TOKEN_ADDRESS,
-    abi: ARC_TOKEN_ABI,
-    functionName: 'balanceOf',
+    address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
-    chainId: CHAIN_ID,
+    query: { enabled: !!address }, chainId: CHAIN_ID,
   })
 
-  const {
-    writeContract, data: txHash, isPending, error: writeError, reset,
-  } = useWriteContract()
-
+  const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-
   const isWrongChain = !!address && chainId !== CHAIN_ID
+  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
+
+  const formattedBalance = balance != null
+    ? Number(formatUnits(balance, TOKEN_DECIMALS)).toLocaleString('en-US', { maximumFractionDigits: 4 })
+    : null
 
   const handleBurn = () => {
     if (isWrongChain) { switchChain({ chainId: CHAIN_ID }); return }
     const parsed = parseFloat(amount)
     if (!amount || isNaN(parsed) || parsed <= 0) { toast.error('Enter a valid amount greater than 0.'); return }
     reset()
-    writeContract({
-      address: ARC_TOKEN_ADDRESS,
-      abi: ARC_TOKEN_ABI,
-      functionName: 'burn',
-      args: [parseUnits(amount, TOKEN_DECIMALS)],
-      chainId: CHAIN_ID,
-    })
+    writeContract({ address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'burn', args: [parseUnits(amount, TOKEN_DECIMALS)], chainId: CHAIN_ID })
   }
 
-  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
-  const formattedBalance = balance != null
-    ? Number(formatUnits(balance, TOKEN_DECIMALS)).toLocaleString('en-US', { maximumFractionDigits: 4 })
-    : '—'
-  const disabled = !address || isPending || isConfirming
+  if (!address) return <p style={hint}>Connect your wallet to burn.</p>
+
+  const busy = isPending || isConfirming
 
   return (
-    <section style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-        <div style={iconBadge('#ba2b4c', 'rgba(186,43,76,0.08)')}>
-          <Flame size={16} color="#ba2b4c" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Amount</label>
+          {formattedBalance != null && (
+            <button
+              onClick={() => balance != null && setAmount(formatUnits(balance, TOKEN_DECIMALS))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: 'var(--accent)', padding: 0, fontFamily: 'inherit' }}
+            >
+              Balance: {formattedBalance} · Max
+            </button>
+          )}
         </div>
-        <div>
-          <h3 className="display" style={cardTitle}>Burn Tokens</h3>
-          <p style={cardSubtitle}>Burns from your own balance</p>
+        <div style={{ position: 'relative' }}>
+          <input
+            inputMode="decimal"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^0-9.]/g, '')
+              if (v === '' || /^\d*\.?\d*$/.test(v)) setAmount(v)
+            }}
+            style={{ ...inputStyle, paddingRight: '56px' }}
+            disabled={busy}
+          />
+          <span style={suffixStyle}>ARCT</span>
         </div>
       </div>
 
-      {!address ? (
-        <p style={hintText}>Connect your wallet to burn.</p>
-      ) : (
-        <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Amount</label>
-            <span style={{ fontSize: '12px', color: 'var(--subtle)' }}>
-              Balance: <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{formattedBalance}</span>
-            </span>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="number"
-              placeholder="0"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              style={{ ...inputStyle, paddingRight: '52px' }}
-              disabled={isPending || isConfirming}
-            />
-            <span style={inputSuffix}>ARCT</span>
-          </div>
-          {balance != null && (
-            <button
-              onClick={() => setAmount(formatUnits(balance, TOKEN_DECIMALS))}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '11px', fontWeight: 600, color: 'var(--accent)',
-                padding: '4px 0', marginTop: '4px',
-              }}
-            >
-              Use max
-            </button>
-          )}
+      <Cta
+        isWrongChain={isWrongChain}
+        isPending={isPending}
+        isConfirming={isConfirming}
+        onAction={handleBurn}
+        onSwitch={() => switchChain({ chainId: CHAIN_ID })}
+        label="Burn tokens"
+        color="#ba2b4c"
+      />
 
-          {isWrongChain ? (
-            <button onClick={() => switchChain({ chainId: CHAIN_ID })} style={primaryBtn('#1061a6')}>
-              Switch to Arc Testnet
-            </button>
-          ) : (
-            <button onClick={handleBurn} disabled={disabled} style={primaryBtn('#ba2b4c', disabled)}>
-              {isPending ? 'Confirm in wallet…' : isConfirming ? 'Confirming…' : 'Burn'}
-            </button>
-          )}
-
-          {isSuccess && txHash && (
-            <div style={successBanner}>
-              Burned successfully!{' '}
-              <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
-                View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
-              </a>
-            </div>
-          )}
-          {writeError && <div style={errorBanner}>{parseOnchainError(writeError)}</div>}
-        </>
+      {isSuccess && txHash && (
+        <div style={successBanner}>
+          Burned successfully!{' '}
+          <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
+            View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+          </a>
+        </div>
       )}
-    </section>
+      {writeError && <div style={errorBanner}>{parseOnchainError(writeError)}</div>}
+    </div>
   )
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi'
 import { parseUnits, isAddress } from 'viem'
 import { toast } from 'sonner'
-import { Coins, ExternalLink } from 'lucide-react'
+import { ExternalLink, Loader2 } from 'lucide-react'
 import { ARC_TOKEN_ABI, ARC_TOKEN_ADDRESS } from '@/abi/ArcToken'
 import { MINTER_ROLE } from './TokenInfo'
 import { buildTxExplorerUrl } from '@/onchain-facts'
@@ -26,25 +26,15 @@ export function MintForm() {
   const [amount, setAmount] = useState('')
 
   const { data: hasMinter } = useReadContract({
-    address: ARC_TOKEN_ADDRESS,
-    abi: ARC_TOKEN_ABI,
-    functionName: 'hasRole',
+    address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'hasRole',
     args: address ? [MINTER_ROLE, address] : undefined,
-    query: { enabled: !!address },
-    chainId: CHAIN_ID,
+    query: { enabled: !!address }, chainId: CHAIN_ID,
   })
 
-  const {
-    writeContract,
-    data: txHash,
-    isPending,
-    error: writeError,
-    reset,
-  } = useWriteContract()
-
+  const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-
   const isWrongChain = !!address && chainId !== CHAIN_ID
+  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
 
   const handleMint = () => {
     if (isWrongChain) { switchChain({ chainId: CHAIN_ID }); return }
@@ -52,180 +42,175 @@ export function MintForm() {
     const parsed = parseFloat(amount)
     if (!amount || isNaN(parsed) || parsed <= 0) { toast.error('Enter a valid amount greater than 0.'); return }
     reset()
-    writeContract({
-      address: ARC_TOKEN_ADDRESS,
-      abi: ARC_TOKEN_ABI,
-      functionName: 'mint',
-      args: [recipient, parseUnits(amount, TOKEN_DECIMALS)],
-      chainId: CHAIN_ID,
-    })
+    writeContract({ address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'mint', args: [recipient, parseUnits(amount, TOKEN_DECIMALS)], chainId: CHAIN_ID })
   }
 
-  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
+  if (!address) return <p style={hint}>Connect your wallet to mint.</p>
 
-  const disabled = !address || isPending || isConfirming || !hasMinter
+  if (!hasMinter) {
+    return (
+      <div style={noRoleBanner}>
+        <strong>No Minter role.</strong> Ask an admin to grant MINTER_ROLE to your wallet first.
+      </div>
+    )
+  }
+
+  const busy = isPending || isConfirming
 
   return (
-    <section style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-        <div style={iconBadge('#1a8047', 'rgba(26,128,71,0.1)')}>
-          <Coins size={16} color="#1a8047" />
-        </div>
-        <div>
-          <h3 className="display" style={cardTitle}>Mint Tokens</h3>
-          <p style={cardSubtitle}>Requires Minter role</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div>
+        <label style={labelStyle}>Recipient address</label>
+        <input
+          type="text"
+          placeholder="0x…"
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+          style={inputStyle}
+          disabled={busy}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Amount</label>
+        <div style={{ position: 'relative' }}>
+          <input
+            inputMode="decimal"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^0-9.]/g, '')
+              if (v === '' || /^\d*\.?\d*$/.test(v)) setAmount(v)
+            }}
+            style={{ ...inputStyle, paddingRight: '56px' }}
+            disabled={busy}
+          />
+          <span style={suffixStyle}>ARCT</span>
         </div>
       </div>
 
-      {!address ? (
-        <p style={hintText}>Connect your wallet to mint.</p>
-      ) : !hasMinter ? (
-        <div style={noRoleBanner}>
-          Your wallet does not have the Minter role. Ask an admin to grant it.
+      <Cta
+        isWrongChain={isWrongChain}
+        isPending={isPending}
+        isConfirming={isConfirming}
+        onAction={handleMint}
+        onSwitch={() => switchChain({ chainId: CHAIN_ID })}
+        label="Mint tokens"
+        color="#1a8047"
+      />
+
+      {isSuccess && txHash && (
+        <div style={successBanner}>
+          Minted successfully!{' '}
+          <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
+            View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+          </a>
         </div>
-      ) : (
-        <>
-          <label style={labelStyle}>Recipient address</label>
-          <input
-            type="text"
-            placeholder="0x..."
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            style={inputStyle}
-            disabled={disabled && !hasMinter}
-          />
-
-          <label style={{ ...labelStyle, marginTop: '12px' }}>Amount</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="number"
-              placeholder="0"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              style={{ ...inputStyle, paddingRight: '52px' }}
-              disabled={isPending || isConfirming}
-            />
-            <span style={inputSuffix}>ARCT</span>
-          </div>
-
-          {isWrongChain ? (
-            <button onClick={() => switchChain({ chainId: CHAIN_ID })} style={primaryBtn('#1061a6')}>
-              Switch to Arc Testnet
-            </button>
-          ) : (
-            <button onClick={handleMint} disabled={disabled} style={primaryBtn('#122d45', disabled)}>
-              {isPending ? 'Confirm in wallet…' : isConfirming ? 'Confirming…' : 'Mint'}
-            </button>
-          )}
-
-          {isSuccess && txHash && (
-            <div style={successBanner}>
-              Minted successfully!{' '}
-              <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
-                View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
-              </a>
-            </div>
-          )}
-          {writeError && (
-            <div style={errorBanner}>{parseOnchainError(writeError)}</div>
-          )}
-        </>
       )}
-    </section>
+      {writeError && <div style={errorBanner}>{parseOnchainError(writeError)}</div>}
+    </div>
   )
 }
 
-// ─── Shared styles ─────────────────────────────────────────────────────────
-
-export const cardStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  backdropFilter: 'blur(16px)',
-  border: '1px solid var(--border)',
-  borderRadius: '16px',
-  padding: '22px 20px',
-}
-
-export const cardTitle: React.CSSProperties = {
-  margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--ink)',
-}
-
-export const cardSubtitle: React.CSSProperties = {
-  margin: 0, fontSize: '12px', color: 'var(--subtle)',
-}
+// ─── Shared UI primitives exported for sibling components ─────────────────
 
 export const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: '12px', fontWeight: 600,
-  color: 'var(--muted)', letterSpacing: '0.05em',
+  display: 'block', fontSize: '11px', fontWeight: 700,
+  color: 'var(--subtle)', letterSpacing: '0.07em',
   textTransform: 'uppercase', marginBottom: '6px',
 }
 
 export const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px',
-  border: '1px solid var(--border)',
-  borderRadius: '10px', fontSize: '14px',
-  background: 'var(--surface-muted)',
+  width: '100%', padding: '12px 14px',
+  border: '1px solid rgba(255,255,255,0.56)',
+  borderRadius: '12px', fontSize: '15px',
+  background: 'rgba(255,255,255,0.46)',
   color: 'var(--ink)', outline: 'none',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
 }
 
-export const inputSuffix: React.CSSProperties = {
-  position: 'absolute', right: '12px', top: '50%',
+export const suffixStyle: React.CSSProperties = {
+  position: 'absolute', right: '14px', top: '50%',
   transform: 'translateY(-50%)',
-  fontSize: '12px', fontWeight: 600, color: 'var(--subtle)',
-  pointerEvents: 'none',
+  fontSize: '12px', fontWeight: 700, color: 'var(--subtle)',
+  pointerEvents: 'none', letterSpacing: '0.04em',
 }
 
-export const hintText: React.CSSProperties = {
-  fontSize: '13px', color: 'var(--subtle)', margin: 0,
+export const hint: React.CSSProperties = {
+  fontSize: '13px', color: 'var(--subtle)', margin: 0, textAlign: 'center', padding: '8px 0',
 }
 
 export const noRoleBanner: React.CSSProperties = {
   fontSize: '13px', color: '#7c4b0d',
   background: 'rgba(186,120,43,0.08)',
-  border: '1px solid rgba(186,120,43,0.2)',
-  borderRadius: '10px', padding: '10px 14px',
+  border: '1px solid rgba(186,120,43,0.20)',
+  borderRadius: '12px', padding: '12px 16px', lineHeight: 1.5,
 }
 
 export const successBanner: React.CSSProperties = {
   fontSize: '13px', color: '#1a8047',
   background: 'rgba(26,128,71,0.07)',
-  border: '1px solid rgba(26,128,71,0.2)',
-  borderRadius: '10px', padding: '10px 14px',
-  marginTop: '10px',
+  border: '1px solid rgba(26,128,71,0.20)',
+  borderRadius: '12px', padding: '12px 16px',
 }
 
 export const errorBanner: React.CSSProperties = {
   fontSize: '13px', color: '#ba2b4c',
   background: 'rgba(186,43,76,0.07)',
-  border: '1px solid rgba(186,43,76,0.2)',
-  borderRadius: '10px', padding: '10px 14px',
-  marginTop: '10px',
+  border: '1px solid rgba(186,43,76,0.20)',
+  borderRadius: '12px', padding: '12px 16px',
 }
 
 export const explorerLink: React.CSSProperties = {
-  color: 'inherit', fontWeight: 600, textDecoration: 'underline',
+  color: 'inherit', fontWeight: 700, textDecoration: 'underline',
 }
 
-export function primaryBtn(bg: string, disabled?: boolean): React.CSSProperties {
-  return {
-    width: '100%', marginTop: '14px',
-    padding: '11px 0', borderRadius: '10px',
-    border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'var(--surface-muted)' : bg,
-    color: disabled ? 'var(--subtle)' : '#fff',
-    fontSize: '14px', fontWeight: 600,
-    fontFamily: 'inherit', transition: 'opacity 0.15s',
-    opacity: disabled ? 0.7 : 1,
+// ─── Shared CTA button ────────────────────────────────────────────────────
+
+interface CtaProps {
+  isWrongChain: boolean
+  isPending: boolean
+  isConfirming: boolean
+  onAction: () => void
+  onSwitch: () => void
+  label: string
+  color?: string
+}
+
+export function Cta({ isWrongChain, isPending, isConfirming, onAction, onSwitch, label, color = 'var(--accent)' }: CtaProps) {
+  const busy = isPending || isConfirming
+  if (isWrongChain) {
+    return (
+      <button onClick={onSwitch} style={ctaStyle('#1061a6')}>
+        Switch to Arc Testnet
+      </button>
+    )
   }
+  return (
+    <button
+      onClick={onAction}
+      disabled={busy}
+      style={{ ...ctaStyle(color), opacity: busy ? 0.65 : 1, cursor: busy ? 'wait' : 'pointer' }}
+    >
+      {busy ? (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} />
+          {isPending ? 'Confirm in wallet…' : 'Confirming…'}
+        </span>
+      ) : label}
+    </button>
+  )
 }
 
-export function iconBadge(color: string, bg: string): React.CSSProperties {
+function ctaStyle(bg: string): React.CSSProperties {
   return {
-    width: '36px', height: '36px',
-    borderRadius: '10px', background: bg,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
+    width: '100%', padding: '14px',
+    border: 'none', borderRadius: '14px',
+    background: bg, color: '#fff',
+    fontSize: '14px', fontWeight: 700,
+    cursor: 'pointer', fontFamily: 'inherit',
+    transition: 'transform 0.1s, opacity 0.15s',
+    marginTop: '2px',
   }
 }

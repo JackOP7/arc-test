@@ -25,3 +25,34 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792222707279}
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792222708327}
 {"level":"debug","message":"[vite] connected.","timestamp":1792224789647}
+{"level":"debug","message":"[vite] connected.","timestamp":1792420829035}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792426231900}
+{"level":"debug","message":"[vite] connected.","timestamp":1792426784922}
+{"level":"debug","message":"[vite] connected.","timestamp":1792505599711}
+{"level":"debug","message":"[vite] hot updated: /src/App.tsx","timestamp":1792505667742}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505667742}
+{"level":"debug","message":"[vite] invalidate /src/components/MintForm.tsx: Could not Fast Refresh (export removed)","timestamp":1792505716400}
+{"level":"debug","message":"[vite] hot updated: /src/components/MintForm.tsx","timestamp":1792505716401}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505716401}
+{"level":"debug","message":"[vite] hot updated: /src/components/TokenInfo.tsx","timestamp":1792505717597}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505717598}
+{"level":"error","message":"[vite] SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'","timestamp":1792505719176,"stack":"SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'"}
+{"level":"error","message":"[vite] Failed to reload /src/components/RoleManager.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792505719176}
+{"level":"error","message":"[vite] SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'","timestamp":1792505719176,"stack":"SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'"}
+{"level":"error","message":"[vite] Failed to reload /src/App.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792505719176}
+{"level":"error","message":"[vite] SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'","timestamp":1792505719177,"stack":"SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'"}
+{"level":"error","message":"[vite] Failed to reload /src/components/BurnForm.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792505719178}
+{"level":"error","message":"[vite] SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'","timestamp":1792505719179,"stack":"SyntaxError: The requested module '/src/components/MintForm.tsx?t=1792505712754' does not provide an export named 'cardStyle'"}
+{"level":"error","message":"[vite] Failed to reload /src/components/PauseControls.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792505719179}
+{"level":"debug","message":"[vite] hot updated: /src/App.tsx","timestamp":1792505719179}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505719179}
+{"level":"debug","message":"[vite] hot updated: /src/components/PauseControls.tsx","timestamp":1792505719179}
+{"level":"debug","message":"[vite] hot updated: /src/components/RoleManager.tsx","timestamp":1792505719179}
+{"level":"debug","message":"[vite] hot updated: /src/components/BurnForm.tsx","timestamp":1792505719180}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792505753655}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505753655}
+{"level":"debug","message":"[vite] hot updated: /src/components/PauseControls.tsx","timestamp":1792505754874}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505754874}
+{"level":"debug","message":"[vite] hot updated: /src/components/RoleManager.tsx","timestamp":1792505756067}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792505756067}
+{"level":"debug","message":"[vite] connected.","timestamp":1792505769849}

@@ -1,13 +1,9 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi'
-import { ExternalLink, Play, Pause } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { ARC_TOKEN_ABI, ARC_TOKEN_ADDRESS } from '@/abi/ArcToken'
 import { PAUSER_ROLE } from './TokenInfo'
 import { buildTxExplorerUrl } from '@/onchain-facts'
-import {
-  cardStyle, cardTitle, cardSubtitle, hintText,
-  noRoleBanner, successBanner, errorBanner, explorerLink,
-  primaryBtn, iconBadge,
-} from './MintForm'
+import { hint, noRoleBanner, successBanner, errorBanner, explorerLink, Cta } from './MintForm'
 
 const CHAIN_ID = 5042002
 
@@ -24,70 +20,31 @@ export function PauseControls() {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
 
-  const { data: isPaused, refetch: refetchPaused } = useReadContract({
-    address: ARC_TOKEN_ADDRESS,
-    abi: ARC_TOKEN_ABI,
-    functionName: 'paused',
-    chainId: CHAIN_ID,
-  })
+  const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'paused', chainId: CHAIN_ID })
+  const { data: hasPauser } = useReadContract({ address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: 'hasRole', args: address ? [PAUSER_ROLE, address] : undefined, query: { enabled: !!address }, chainId: CHAIN_ID })
 
-  const { data: hasPauser } = useReadContract({
-    address: ARC_TOKEN_ADDRESS,
-    abi: ARC_TOKEN_ABI,
-    functionName: 'hasRole',
-    args: address ? [PAUSER_ROLE, address] : undefined,
-    query: { enabled: !!address },
-    chainId: CHAIN_ID,
-  })
-
-  const {
-    writeContract, data: txHash, isPending, error: writeError, reset,
-  } = useWriteContract()
-
+  const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-
-  // Refetch paused state after confirmation
   if (isSuccess) void refetchPaused()
 
   const isWrongChain = !!address && chainId !== CHAIN_ID
+  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
 
   const handleToggle = () => {
     if (isWrongChain) { switchChain({ chainId: CHAIN_ID }); return }
     reset()
-    writeContract({
-      address: ARC_TOKEN_ADDRESS,
-      abi: ARC_TOKEN_ABI,
-      functionName: isPaused ? 'unpause' : 'pause',
-      chainId: CHAIN_ID,
-    })
+    writeContract({ address: ARC_TOKEN_ADDRESS, abi: ARC_TOKEN_ABI, functionName: isPaused ? 'unpause' : 'pause', chainId: CHAIN_ID })
   }
 
-  const explorerUrl = txHash ? buildTxExplorerUrl(CHAIN_ID, txHash) : undefined
-  const disabled = !address || isPending || isConfirming || !hasPauser
-
-  const accentColor = isPaused ? '#1a8047' : '#ba2b4c'
-  const accentBg = isPaused ? 'rgba(26,128,71,0.1)' : 'rgba(186,43,76,0.08)'
-  const Icon = isPaused ? Play : Pause
+  if (!address) return <p style={hint}>Connect your wallet to toggle pause.</p>
 
   return (
-    <section style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-        <div style={iconBadge(accentColor, accentBg)}>
-          <Icon size={16} color={accentColor} />
-        </div>
-        <div>
-          <h3 className="display" style={cardTitle}>
-            {isPaused === undefined ? 'Pause Controls' : isPaused ? 'Unpause Contract' : 'Pause Contract'}
-          </h3>
-          <p style={cardSubtitle}>Requires Pauser role</p>
-        </div>
-      </div>
-
-      {/* Current status */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Status pill */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-muted)', borderRadius: '10px',
-        padding: '12px 14px', marginBottom: '16px',
+        background: 'rgba(255,255,255,0.46)', border: '1px solid rgba(255,255,255,0.56)',
+        borderRadius: '12px', padding: '12px 16px',
       }}>
         <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>Current status</span>
         {isPaused === undefined ? (
@@ -99,35 +56,31 @@ export function PauseControls() {
         )}
       </div>
 
-      {!address ? (
-        <p style={hintText}>Connect your wallet to toggle pause.</p>
-      ) : !hasPauser ? (
+      {!hasPauser ? (
         <div style={noRoleBanner}>
-          Your wallet does not have the Pauser role. Ask an admin to grant it.
+          <strong>No Pauser role.</strong> Ask an admin to grant PAUSER_ROLE to your wallet first.
         </div>
       ) : (
-        <>
-          {isWrongChain ? (
-            <button onClick={() => switchChain({ chainId: CHAIN_ID })} style={primaryBtn('#1061a6')}>
-              Switch to Arc Testnet
-            </button>
-          ) : (
-            <button onClick={handleToggle} disabled={disabled} style={primaryBtn(accentColor, disabled)}>
-              {isPending ? 'Confirm in wallet…' : isConfirming ? 'Confirming…' : isPaused ? 'Unpause' : 'Pause'}
-            </button>
-          )}
-
-          {isSuccess && txHash && (
-            <div style={successBanner}>
-              {isPaused ? 'Unpaused' : 'Paused'} successfully!{' '}
-              <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
-                View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
-              </a>
-            </div>
-          )}
-          {writeError && <div style={errorBanner}>{parseOnchainError(writeError)}</div>}
-        </>
+        <Cta
+          isWrongChain={isWrongChain}
+          isPending={isPending}
+          isConfirming={isConfirming}
+          onAction={handleToggle}
+          onSwitch={() => switchChain({ chainId: CHAIN_ID })}
+          label={isPaused ? 'Unpause contract' : 'Pause contract'}
+          color={isPaused ? '#1a8047' : '#ba2b4c'}
+        />
       )}
-    </section>
+
+      {isSuccess && txHash && (
+        <div style={successBanner}>
+          {isPaused ? 'Unpaused' : 'Paused'} successfully!{' '}
+          <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={explorerLink}>
+            View tx <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+          </a>
+        </div>
+      )}
+      {writeError && <div style={errorBanner}>{parseOnchainError(writeError)}</div>}
+    </div>
   )
 }
